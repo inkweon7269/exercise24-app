@@ -1,11 +1,13 @@
 import {
   Body,
+  ClassSerializerInterceptor,
   Controller,
   ForbiddenException,
   Get,
   Post,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dtos/create-user.dto';
@@ -14,8 +16,11 @@ import { AuthService } from '../auth/auth.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { GetUser } from '../auth/get-user.decorator';
 import { User } from './entities/user.entity';
+import { Serialize } from '../interceptors/serialize.interceptor';
+import { UserDto } from './dtos/user.dto';
 
 @Controller('account')
+// @Serialize(UserDto)
 export class UserController {
   constructor(
     private readonly userService: UserService,
@@ -23,6 +28,7 @@ export class UserController {
   ) {}
 
   @Post('/join')
+  @Serialize(UserDto)
   async createUser(@Body() createUserDto: CreateUserDto) {
     const user = await this.userService.findByEmail(createUserDto.email);
 
@@ -43,6 +49,8 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
+  // @UseInterceptors(new SerializeInterceptor(UserDto))
+  @Serialize(UserDto)
   @Get('/all')
   async allUser() {
     const user = await this.userService.allUser();

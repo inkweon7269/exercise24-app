@@ -378,6 +378,194 @@ export class UserController {
 }
 ```
 
+
+## Authentication & Authorization : JWT
+src/auth/jwt-auth.guard.ts
+```typescript
+import { Injectable } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {}
+```
+
+
+src/auth/jwt.strategy.ts
+```typescript
+import { Injectable } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor() {
+    super({
+      secretOrKey: 'Secret',
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+    });
+  }
+
+  async validate(payload: any) {
+    const { id, email, username } = payload;
+
+    return { id, email, username };
+  }
+}
+```
+
+
+
+src/auth/auth.service.ts
+```typescript
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { UserService } from '../user/user.service';
+import * as bcrypt from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private userService: UserService,
+    private jwtService: JwtService,
+  ) {}
+
+  async validateUser(payload): Promise<any> {
+    const { email, password } = payload;
+    const user = await this.userService.findByEmail(email);
+
+    if (!user) {
+      throw new ForbiddenException('등록되지 않은 사용자입니다.');
+    }
+
+    if (!(await bcrypt.compare(password, user.password))) {
+      throw new ForbiddenException('비밀번호가 일치하지 않습니다.');
+    }
+
+    return user;
+  }
+
+  async login(user: any) {
+    const { id, email, username } = user;
+    const payload = { id, email, username };
+
+    return {
+      token: this.jwtService.sign(payload),
+    };
+  }
+}
+```
+
+
+src/auth/get-user.decorator.ts
+```typescript
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { User } from '../user/entities/user.entity';
+
+export const GetUser = createParamDecorator(
+  (data, ctx: ExecutionContext): User => {
+    const req = ctx.switchToHttp().getRequest();
+    return req.user;
+  },
+);
+```
+
+
+
+
+src/auth/auth.module.ts
+```typescript
+import { forwardRef, Module } from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { UserModule } from '../user/user.module';
+import { PassportModule } from '@nestjs/passport';
+import { LocalStrategy } from './local.strategy';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from '../user/entities/user.entity';
+import { JwtModule } from '@nestjs/jwt';
+import { JwtStrategy } from './jwt.strategy';
+
+@Module({
+  imports: [
+    forwardRef(() => UserModule),
+    PassportModule,
+    JwtModule.register({
+      secret: 'Secret',
+      signOptions: { expiresIn: '60s' },
+    }),
+    TypeOrmModule.forFeature([User]),
+  ],
+  providers: [AuthService, LocalStrategy, JwtStrategy],
+  exports: [AuthService],
+})
+export class AuthModule {}
+```
+
+
+src/user/user.controller.ts
+```typescript
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { UserService } from './user.service';
+import { CreateUserDto } from './dtos/create-user.dto';
+import { LocalAuthGuard } from '../auth/local-auth.guard';
+import { AuthService } from '../auth/auth.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { GetUser } from '../auth/get-user.decorator';
+import { User } from './entities/user.entity';
+
+@Controller('account')
+export class UserController {
+  constructor(
+    private readonly userService: UserService,
+    private readonly authService: AuthService,
+  ) {}
+
+  @Post('/join')
+  async createUser(@Body() createUserDto: CreateUserDto) {
+    const user = await this.userService.findByEmail(createUserDto.email);
+
+    if (user) {
+      throw new ForbiddenException('이미 등록된 사용자입니다.');
+    }
+
+    const result = await this.userService.createUser(createUserDto);
+
+    return result;
+  }
+
+  @UseGuards(LocalAuthGuard)
+  @Post('/login')
+  async loginUser(@Req() req) {
+    const token = await this.authService.login(req.user);
+    return token;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('/all')
+  async allUser() {
+    const user = await this.userService.allUser();
+    return user;
+  }
+
+  // Decorator 테스트
+  @UseGuards(JwtAuthGuard)
+  @Get('/test')
+  async test(@GetUser() user: User) {
+    console.log(user);
+  }
+}
+```
+
+
+
+
 ## Contact
 - Resume - [Inkweon Kim](https://docs.google.com/document/d/1Ca2ndJ7stlcx4lKaCI_YGVvS5aNuP56nOnwj3bLahHU/edit?usp=sharing)
 - Facebook - [facebook.com/inkweon7269](https://www.facebook.com/inkweon7269)

@@ -1,0 +1,8 @@
+{
+  "development": {
+    "baseUrl": "http://localhost:8000"
+  },
+  "production": {
+    "baseUrl": "http://localhost:8000"
+  }
+}

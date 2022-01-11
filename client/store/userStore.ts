@@ -1,7 +1,7 @@
 import { observable } from "mobx";
 import {postLogin} from "../library/user";
 
-const login = async (data, callback) => {
+const login = async (data: any, callback: any) => {
     try {
         const res = await postLogin(data);
         if (res.status === 200 || res.status === 201) {
@@ -10,8 +10,10 @@ const login = async (data, callback) => {
 
             callback(true, null, '로그인에 성공했습니다.');
         }
-    } catch (error) {
-        callback(false, null, error.response.data.message);
+    } catch (e) {
+        if (e instanceof Error) {
+            callback(false, null, e.message);
+        }
     }
 }
 

@@ -16,7 +16,7 @@ const Login = observer(() => {
     const router = useRouter();
     const { user } = useStore();
 
-    const loginCB = (isSuccess, data, msg) => {
+    const loginCB = (isSuccess: boolean, data: any, msg: string | null) => {
         if (isSuccess) {
             router.push('/')
         } else {

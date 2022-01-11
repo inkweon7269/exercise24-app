@@ -34,7 +34,7 @@ const StyledSelect: FC<IPropsSelect> = (
                         showSearch
                         optionFilterProp="children"
                         filterOption={(input, option) =>
-                            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                            option?.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                         }
                         placeholder={placeholder}
                         disabled={disabled}
